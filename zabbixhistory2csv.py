@@ -3,13 +3,14 @@ import csv
 import getpass
 import sys
 import time
+import datetime
 
 from pyzabbix import ZabbixAPI
+from time import gmtime, strftime
 
 
 def get_zapi(host, user, password, verify):
     """
-
     :param host:
     :param user:
     :param password:
@@ -74,22 +75,29 @@ def get_history(zapi, itemid, time_from, time_till, max_days):
 
 def write_csv(objects, output_file):
     """
-
     :param objects:
     :param output_file:
     :return:
     """
     # Open the output_file and instanstiate the csv.writer object
-    f = csv.writer(open(output_file, "wb+"))
+    f = csv.writer(open(output_file, "w"))
 
-    # Write the top line of the output_file which descibes the columns
+    # Write the top line of the output_file which describes the columns
     f.writerow(objects[0].keys())
+
+    # Description for history objects:
+    # https://www.zabbix.com/documentation/2.0/manual/appendix/api/history/definitions
 
     # For each object, write a row to the csv file.
     for o in objects:
         row = []
+        value = None
         for key in o.keys():
-            row.append(o[key])
+            value = o[key]
+            if key == 'clock':
+                timestamp = datetime.datetime.fromtimestamp(int(o[key])).strftime('%Y-%m-%d %H:%M:%S')
+                value = timestamp
+            row.append(value)
         f.writerow(row)
 
 
@@ -108,7 +116,7 @@ def build_parsers():
                         help="Verify SSL (True, False)")
     parser.add_argument("-H", "--host",
                         dest='host',
-                        required=True,
+                        required=False,
                         help="Zabbix API host"
                              "example: https://zabbixhost.example.com/zabbix")
     parser.add_argument("-u", "--user",
@@ -123,7 +131,7 @@ def build_parsers():
                         default='output.csv',
                         help="Output file in csv format\nDefault: output.csv")
     parser.add_argument("-i", "--itemid",
-                        required=True,
+                        required=False,
                         help="The zabbix item that we will use "
                              "in our history.get api call.")
     parser.add_argument("-d", "--max-days",
@@ -148,7 +156,8 @@ if __name__ == '__main__':
 
     # Generate the zapi object so we can pass it to the get_history function
     try:
-        zapi = get_zapi(args.host, args.user, password, eval(args.verify))
+        zapi = get_zapi('http://192.168.10.100/zabbix/api_jsonrpc.php',
+                        eval(args.verify))
     except Exception as e:
         if 'Login name or password is incorrect.' in str(e):
             print('Unauthorized: Please check your username and password')
@@ -156,16 +165,25 @@ if __name__ == '__main__':
             print('Error connecting to zabbixapi: {0}'.format(e))
         exit()
 
+    zabbix_hostids = {'edge_vim': 10266, 'meao': 10264,
+                      'mto': 10265, 'osm': 10263}
+
+    zabbix_itemids = 28778
+
     # generate the list of history objects returned from zabbix api.
     try:
-        results = get_history(zapi, args.itemid, (now - seconds_ago), now, args.max_days)
+        results = get_history(zapi, zabbix_itemids,
+                              (now - seconds_ago),
+                              now, args.max_days)
     except Exception as e:
         message = ('An error has occurred.  --max-days may be set too high. '
                    'Try decreasing it value.\nError:\n{0}')
         print(message.format(e))
         exit()
 
+    timestamp = strftime("%Y-%m-%d__%H-%M-%S", gmtime())
+
     # Write the results to file in csv format
-    write_csv(results, args.output_file)
-    print('Writing {0} minutes worth of history to {1}'.format(
-            args.minutes_ago, args.output_file))
+    write_csv(results, '{0}-mto-eval.csv'.format(timestamp))
+    print('\nWriting {0} minutes worth of history to {1}-mto-eval.csv'.format(
+            args.minutes_ago, timestamp))
