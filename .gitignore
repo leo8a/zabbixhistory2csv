@@ -59,3 +59,9 @@ docs/_build/
 target/
 
 # Created by .ignore support plugin (hsz.mobi)
+
+# Project Specifics
+nohup.out
+mto_eval.ovpn
+mto-restart-openvpn.sh
+.idea/
