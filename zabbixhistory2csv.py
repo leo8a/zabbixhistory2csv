@@ -1,12 +1,15 @@
-import argparse
-import csv
-import getpass
 import sys
+import csv
 import time
+import getpass
 import datetime
+import argparse
 
 from pyzabbix import ZabbixAPI
 from time import gmtime, strftime
+
+
+# Define some global variables
 
 
 def get_zapi(host, user, password, verify):
@@ -48,8 +51,6 @@ def get_history(zapi, itemid, time_from, time_till, max_days):
 
     max_secs = max_days * 3600
 
-    # time_till = now
-    # time_from = start time
     # Make call to zabbix API for history
     while time_till > time_from:
         if time_till - time_from > max_secs:
@@ -91,12 +92,12 @@ def write_csv(objects, output_file):
     # For each object, write a row to the csv file.
     for o in objects:
         row = []
-        value = None
         for key in o.keys():
             value = o[key]
             if key == 'clock':
-                timestamp = datetime.datetime.fromtimestamp(int(o[key])).strftime('%Y-%m-%d %H:%M:%S')
-                value = timestamp
+                time_tmp = datetime.datetime.fromtimestamp(
+                    int(o[key])).strftime('%Y-%m-%d %H:%M:%S')
+                value = time_tmp
             row.append(value)
         f.writerow(row)
 
@@ -140,7 +141,6 @@ def build_parsers():
                         type=int,
                         help="The max days worth of history that we will "
                              "request from zabbix per request")
-
     return parser
 
 
@@ -152,11 +152,12 @@ if __name__ == '__main__':
     # Generate parameters for get_zapi function
     seconds_ago = int(args.minutes_ago) * 60
     now = int(time.time())
-    password = getpass.getpass()
+    password = PASSWORD
 
     # Generate the zapi object so we can pass it to the get_history function
     try:
-        zapi = get_zapi('http://192.168.10.100/zabbix/api_jsonrpc.php',
+        zapi = get_zapi(ZABBIX_URL,
+                        USER, password,
                         eval(args.verify))
     except Exception as e:
         if 'Login name or password is incorrect.' in str(e):
@@ -165,25 +166,32 @@ if __name__ == '__main__':
             print('Error connecting to zabbixapi: {0}'.format(e))
         exit()
 
-    zabbix_hostids = {'edge_vim': 10266, 'meao': 10264,
-                      'mto': 10265, 'osm': 10263}
+    # Put here metrics to be retrieved
+    zabbix_itemids = {
+        'edge_vim': [28778]
+        # 'meao': [28778],
+        # 'mto': [28778],
+        # 'osm': [28778]
+                      }
 
-    zabbix_itemids = 28778
+    # Start the loop to retrieve the metrics data
+    for vm in zabbix_itemids.keys():
+        for item in zabbix_itemids[vm]:
 
-    # generate the list of history objects returned from zabbix api.
-    try:
-        results = get_history(zapi, zabbix_itemids,
-                              (now - seconds_ago),
-                              now, args.max_days)
-    except Exception as e:
-        message = ('An error has occurred.  --max-days may be set too high. '
-                   'Try decreasing it value.\nError:\n{0}')
-        print(message.format(e))
-        exit()
+            # generate the list of history objects returned from zabbix api.
+            try:
+                results = get_history(zapi, item,
+                                      (now - seconds_ago),
+                                      now, args.max_days)
+            except Exception as e:
+                message = ('An error has occurred.  --max-days may be set too high. '
+                           'Try decreasing it value.\nError:\n{0}')
+                print(message.format(e))
+                exit()
 
-    timestamp = strftime("%Y-%m-%d__%H-%M-%S", gmtime())
+            timestamp = strftime("%Y-%m-%d__%H-%M-%S", gmtime())
 
-    # Write the results to file in csv format
-    write_csv(results, '{0}-mto-eval.csv'.format(timestamp))
-    print('\nWriting {0} minutes worth of history to {1}-mto-eval.csv'.format(
-            args.minutes_ago, timestamp))
+            # Write the results to file in csv format
+            write_csv(results, '{0}-{1}-{2}.csv'.format(timestamp, vm, item))
+            print('\nWriting {0} minutes worth of history to {1}-{2}-{3}.csv'.format(
+                    args.minutes_ago, timestamp, vm, item))
