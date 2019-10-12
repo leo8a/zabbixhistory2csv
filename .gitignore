@@ -67,3 +67,5 @@ mto-restart-openvpn.sh
 .idea/
 
 *.csv
+
+venv/
