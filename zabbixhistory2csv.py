@@ -167,20 +167,26 @@ if __name__ == '__main__':
         exit()
 
     # Put here metrics to be retrieved
-    zabbix_itemids = {
-        'edge_vim': [28778]
-        # 'meao': [28778],
-        # 'mto': [28778],
-        # 'osm': [28778]
+    zabbix_itemids = {               # [CPU idle time (%), Available memory (B)]
+        'edge_vim': [29060, 29077],
+        'meao': [28785, 28802],
+        'mto': [28937, 28954],
+        'osm': [28697, 28714]
                       }
 
+    # Define the mappings here
+    zabix_mapp = {
+        'cpu-idle-time': [29060, 28785, 28937, 28697],
+        'available-memory': [29077, 28802, 28954, 28714]
+                 }
+
     # Start the loop to retrieve the metrics data
-    for vm in zabbix_itemids.keys():
-        for item in zabbix_itemids[vm]:
+    for vm_name in zabbix_itemids.keys():
+        for item_id in zabbix_itemids[vm_name]:
 
             # generate the list of history objects returned from zabbix api.
             try:
-                results = get_history(zapi, item,
+                results = get_history(zapi, item_id,
                                       (now - seconds_ago),
                                       now, args.max_days)
             except Exception as e:
@@ -191,7 +197,13 @@ if __name__ == '__main__':
 
             timestamp = strftime("%Y-%m-%d__%H-%M-%S", gmtime())
 
+            # Determine name of item_id
+            if item_id in zabix_mapp['cpu-idle-time']:
+                item_name = 'cpu'
+            else:
+                item_name = 'ram'
+
             # Write the results to file in csv format
-            write_csv(results, '{0}-{1}-{2}.csv'.format(timestamp, vm, item))
+            write_csv(results, '{0}/{1}-{2}-{3}.csv'.format(DATA_STORE_PATH, timestamp, vm_name, item_name))
             print('\nWriting {0} minutes worth of history to {1}-{2}-{3}.csv'.format(
-                    args.minutes_ago, timestamp, vm, item))
+                    args.minutes_ago, timestamp, vm_name, item_name))
