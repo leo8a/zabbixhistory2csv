@@ -177,7 +177,7 @@ class InputGenerator:
 
 
 if __name__ == "__main__":
-    NUMBER_OF_INPUTS = 5
+    NUMBER_OF_INPUTS = 2
     init_time = time.time()
     input_generator = InputGenerator()
 
@@ -190,7 +190,7 @@ if __name__ == "__main__":
             datetime.datetime.now()))
 
         # 1) create fog05 vim
-        vim_id = input_generator.post_vim(name="test_{0}".format(request),
+        vim_id = input_generator.post_vim(name="test_eval_mto_{0}".format(request),
                                           description='MTO EVAL Tests')
         print("\n1) VIM ACCOUNT CREATED: {0}".format(vim_id))
         list_of_vim.append(vim_id['id'])
@@ -203,7 +203,7 @@ if __name__ == "__main__":
 
         # 3) instantiate NS
         ns_instance = input_generator.post_ns_instance(nsd_id=alpine_nsd_id,
-                                                       name="test_{0}".format(request),
+                                                       name="test_eval_mto_{0}".format(request),
                                                        description='MTO EVAL Tests',
                                                        vim_account_id=vim_id['id'])
         print("\n3) NS INSTANCE CREATED: {0}:".format(ns_instance))
@@ -211,20 +211,23 @@ if __name__ == "__main__":
         list_of_ns_tmp.append(ns_instance['id'])
 
     counter = 0
+    time_to_live = [300 for x in range(len(list_of_ns_tmp))]  # 5 min timeout
     while len(list_of_ns_tmp) >= 1:
-        ns_data = input_generator.get_ns_instance(list_of_ns_tmp[counter])
+        counter += 1
+        time_to_live[counter-1] -= 1
+        print("    NS TTL: {0}".format(time_to_live))
+        ns_data = input_generator.get_ns_instance(list_of_ns_tmp[counter-1])
         op_status = ns_data["operational-status"]
         config_status = ns_data["config-status"]
         print("    Operational Status = {0}, Config Status = {1} -- {2}"
-              .format(op_status, config_status, list_of_ns_tmp[counter]))
+              .format(op_status, config_status, list_of_ns_tmp[counter-1]))
         if op_status == "failed" or \
                 config_status == "configured" or \
                 op_status == "terminating":
-            list_of_ns_tmp.pop(counter)
-        if len(list_of_ns_tmp) >= counter:
+            list_of_ns_tmp.pop(counter-1)
+            time_to_live.pop(counter-1)
+        if counter >= len(list_of_ns_tmp):
             counter = 0
-        else:
-            counter += 1
 
     for ns in list_of_ns:
         # 4) delete NS
