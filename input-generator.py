@@ -177,7 +177,9 @@ class InputGenerator:
 
 
 if __name__ == "__main__":
-    NUMBER_OF_INPUTS = 2
+    TIMEOUT_FOR_NS = 300     # 5 min
+    NUMBER_OF_INPUTS = 20
+
     init_time = time.time()
     input_generator = InputGenerator()
 
@@ -210,24 +212,26 @@ if __name__ == "__main__":
         list_of_ns.append(ns_instance['id'])
         list_of_ns_tmp.append(ns_instance['id'])
 
-    counter = 0
-    time_to_live = [300 for x in range(len(list_of_ns_tmp))]  # 5 min timeout
-    while len(list_of_ns_tmp) >= 1:
-        counter += 1
-        time_to_live[counter-1] -= 1
-        print("    NS TTL: {0}".format(time_to_live))
-        ns_data = input_generator.get_ns_instance(list_of_ns_tmp[counter-1])
-        op_status = ns_data["operational-status"]
-        config_status = ns_data["config-status"]
-        print("    Operational Status = {0}, Config Status = {1} -- {2}"
-              .format(op_status, config_status, list_of_ns_tmp[counter-1]))
-        if op_status == "failed" or \
-                config_status == "configured" or \
-                op_status == "terminating":
-            list_of_ns_tmp.pop(counter-1)
-            time_to_live.pop(counter-1)
-        if counter >= len(list_of_ns_tmp):
-            counter = 0
+        counter = 0
+        time_to_live = [TIMEOUT_FOR_NS for x in
+                        range(len(list_of_ns_tmp))]
+        while len(list_of_ns_tmp) >= 1:
+            counter += 1
+            time_to_live[counter-1] -= 1
+            print("    NS TTL: {0}".format(time_to_live))
+            ns_data = input_generator.get_ns_instance(list_of_ns_tmp[counter-1])
+            op_status = ns_data["operational-status"]
+            config_status = ns_data["config-status"]
+            print("    Operational Status = {0}, Config Status = {1} -- {2}"
+                  .format(op_status, config_status, list_of_ns_tmp[counter-1]))
+            if op_status == "failed" or \
+                    config_status == "configured" or \
+                    op_status == "terminating" or \
+                    time_to_live[counter-1] <= 0:
+                list_of_ns_tmp.pop(counter-1)
+                time_to_live.pop(counter-1)
+            if counter >= len(list_of_ns_tmp):
+                counter = 0
 
     for ns in list_of_ns:
         # 4) delete NS
