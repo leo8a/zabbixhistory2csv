@@ -23,13 +23,14 @@
 MTO Input Generator
 """
 
+import os
+import math
 import json
+import time
 import requests
 import datetime
 import threading
 import configparser
-
-from coolname import generate_slug
 
 
 class MTOException(Exception):
@@ -176,18 +177,20 @@ class InputGenerator:
 
 
 if __name__ == "__main__":
-    NUMBER_OF_INPUTS = 3
+    NUMBER_OF_INPUTS = 5
+    init_time = time.time()
     input_generator = InputGenerator()
 
     list_of_ns = []
     list_of_ns_tmp = []
     list_of_vim = []
     for request in range(NUMBER_OF_INPUTS):
-        init_time = datetime.datetime.now()
-        # print("\n  ---  INPUT {0} ({1}) ---  ".format(request, init_time))
+        print("\n  ---  INPUT {0} ({1}) ---  ".format(
+            request,
+            datetime.datetime.now()))
 
         # 1) create fog05 vim
-        vim_id = input_generator.post_vim(name=generate_slug(),
+        vim_id = input_generator.post_vim(name="test_{0}".format(request),
                                           description='MTO EVAL Tests')
         print("\n1) VIM ACCOUNT CREATED: {0}".format(vim_id))
         list_of_vim.append(vim_id['id'])
@@ -200,7 +203,7 @@ if __name__ == "__main__":
 
         # 3) instantiate NS
         ns_instance = input_generator.post_ns_instance(nsd_id=alpine_nsd_id,
-                                                       name=generate_slug(),
+                                                       name="test_{0}".format(request),
                                                        description='MTO EVAL Tests',
                                                        vim_account_id=vim_id['id'])
         print("\n3) NS INSTANCE CREATED: {0}:".format(ns_instance))
@@ -232,3 +235,8 @@ if __name__ == "__main__":
         # 5) delete fog05 vim
         input_generator.delete_vim(vim_id=vim)
         print("\n5) VIM ACCOUNT DELETED: {0}".format(vim))
+
+    elapse = (time.time() - init_time) / 60   # unit (min)
+
+    os.system("python zabbixhistory2csv.py -m {0}".format(
+        math.ceil(elapse)))
