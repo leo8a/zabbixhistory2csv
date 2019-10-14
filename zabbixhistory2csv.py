@@ -126,10 +126,12 @@ def build_parsers():
     parser.add_argument("-m", "--minutes-ago",
                         default='60',
                         type=int,
+                        required=False,
                         help='How many minutes worth of history should'
                              'be returned going back in time from right now')
     parser.add_argument("-o", "--output-file",
                         default='output.csv',
+                        required=False,
                         help="Output file in csv format\nDefault: output.csv")
     parser.add_argument("-i", "--itemid",
                         required=False,
@@ -204,6 +206,6 @@ if __name__ == '__main__':
                 item_name = 'ram'
 
             # Write the results to file in csv format
-            write_csv(results, '{0}/{1}-{2}-{3}.csv'.format(DATA_STORE_PATH, timestamp, vm_name, item_name))
+            write_csv(results, '{0}/{1}-{2}-{3}.csv'.format(args.output_file, timestamp, vm_name, item_name))
             print('\nWriting {0} minutes worth of history to {1}-{2}-{3}.csv'.format(
                     args.minutes_ago, timestamp, vm_name, item_name))
