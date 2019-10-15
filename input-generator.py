@@ -31,6 +31,7 @@ import requests
 import datetime
 import configparser
 
+from fog05mm1 import Mm1
 from coolname import generate_slug
 
 
@@ -66,6 +67,9 @@ class InputGenerator:
         self.vim_fog05_type = config.get('vim_fog05', 'type')
         self.vim_fog05_main_api_url = "{0}:{1}".format(_vim_fog05_host,
                                                        _vim_fog05_port)
+        self.__conf = config['meao']
+        self.endpoint = self.__conf['host'] + ':' + self.__conf['port'] + self.__conf['url']
+        self.api = Mm1(self.endpoint)
 
     def post_vim(self, name, description, config=None):
         vim_data = {"name": name,
@@ -101,8 +105,7 @@ class InputGenerator:
         ns_data_int = {"nsdId": nsd_id,
                        "nsName": name,
                        "nsDescription": description,
-                       "vimAccountId": vim_account_id,
-                       "mec": {'mec_platform_id': 'testp'}}
+                       "vimAccountId": vim_account_id}
         response = requests.post(self.instantiate_url,
                                  headers=self.headers,
                                  verify=False,
@@ -123,6 +126,33 @@ class InputGenerator:
             raise MTOException
         return json.loads(response.text)
 
+    def register_mec_appd(self):
+        platform_id = 'testp'
+        appd_simple_example = {
+            "appDId": "example-meapp1",
+            "appName": "example_mec_application",
+            "appProvider": "ADLINK",
+            "appDVersion": "1.0",
+            "appSoftVersion": "",
+            "mecVersion": [
+                "1"
+            ],
+            "appDescription": "Simple MEC Application",
+            "appServiceRequired": [],
+            "appServiceOptional": [],
+            "appServiceProduced": [],
+            "appFeatureRequired": [],
+            "appFeatureOptional": [],
+            "transportDependencies": [],
+            "appTrafficRule": [],
+            "appDNSRule": [],
+            "appLatency": {
+                "timeUnit": 10,
+                "latency": "ms"
+            }
+        }
+        return self.api.applications.add(platform_id, appd_simple_example)
+
     def delete_ns_instance(self, nsr_id):
         inst_url = "{0}/{1}".format(self.instantiate_url,
                                     nsr_id)
@@ -139,7 +169,7 @@ class InputGenerator:
 
 if __name__ == "__main__":
     TIMEOUT_FOR_NS = 300     # 5 min
-    NUMBER_OF_INPUTS = [1, 3, 5, 7, 9, 11, 13, 15]
+    NUMBER_OF_INPUTS = [1]
     DATA_STORE_PATH = 'D:/GitHub/mto-evaluation/notebooks/results'
 
     init_time = time.time()
@@ -151,7 +181,7 @@ if __name__ == "__main__":
     for inputs in NUMBER_OF_INPUTS:
         for request in range(inputs):
             print("\n  ---  INPUT {0}/{1} ({2}) ---  ".format(
-                request, inputs,
+                request, inputs+1,
                 datetime.datetime.now()))
 
             # 1) create fog05 vim
@@ -195,17 +225,22 @@ if __name__ == "__main__":
             if counter >= len(list_of_ns_tmp):
                 counter = 0
 
+        # 4) MEC stuff here
+        mec_app = input_generator.register_mec_appd()
+        mec_app_info = mec_app.get("ApplicationInfo")
+        print("\n4) APPD DEPLOYED IN MEC PLATFORM (testp)")
+
         for ns in list_of_ns:
-            # 4) delete NS
+            # 5) delete NS
             input_generator.delete_ns_instance(ns)
-            print("\n4) NS INSTANCE DELETED: {0}".format(ns))
+            print("\n5) NS INSTANCE DELETED: {0}".format(ns))
 
         for vim in list_of_vim:
-            # 5) delete fog05 vim
+            # 6) delete fog05 vim
             input_generator.delete_vim(vim_id_int=vim)
-            print("\n5) VIM ACCOUNT DELETED: {0}".format(vim))
+            print("\n6) VIM ACCOUNT DELETED: {0}".format(vim))
 
         elapse = (time.time() - init_time) / 60   # unit (min)
 
-        os.system("python zabbixhistory2csv.py -m {0} -o {1}/scenario-1/{2}-request".format(
+        os.system("python zabbixhistory2csv.py -m {0} -o {1}/scenario-2/{2}-request".format(
             math.ceil(elapse), DATA_STORE_PATH, inputs))
