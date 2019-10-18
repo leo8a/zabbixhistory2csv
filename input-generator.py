@@ -168,8 +168,11 @@ class InputGenerator:
 
 
 if __name__ == "__main__":
-    TIMEOUT_FOR_NS = 300     # 5 min
-    NUMBER_OF_INPUTS = [1]
+    SCENARIO = 3
+    TIMEOUT_FOR_NS = 300             # 5 min
+    NUMBER_OF_INPUTS = [1, 3, 5, 7, 9,
+                        11, 13, 15, 17, 19,
+                        21, 23, 25, 27, 29]
     DATA_STORE_PATH = 'D:/GitHub/mto-evaluation/notebooks/results'
 
     init_time = time.time()
@@ -242,5 +245,5 @@ if __name__ == "__main__":
 
         elapse = (time.time() - init_time) / 60   # unit (min)
 
-        os.system("python zabbixhistory2csv.py -m {0} -o {1}/scenario-2/{2}-request".format(
-            math.ceil(elapse), DATA_STORE_PATH, inputs))
+        os.system("python zabbixhistory2csv.py -m {0} -o {1}/scenario-{2}/{3}-request".format(
+            math.ceil(elapse), DATA_STORE_PATH, SCENARIO, inputs))
